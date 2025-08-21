@@ -1,194 +1,63 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Stock Shira – NVDA & GOOGL 📈</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <title>Stock Shira – NVDA & GOOGL</title>
   <style>
-    body{font-family:Arial,system-ui,sans-serif;background:#f4f6f9;margin:0;color:#222}
-    header{padding:22px 16px;text-align:center;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.07);position:sticky;top:0;z-index:1}
-    h1{margin:0 0 6px;font-size:26px}
-    .muted{color:#666;font-size:13px}
-    .wrap{max-width:980px;margin:18px auto;padding:0 12px}
-    .row{display:grid;grid-template-columns:1fr;gap:14px}
-    @media(min-width:800px){.row{grid-template-columns:1fr 1fr}}
-    .card{background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06);padding:14px}
-    .controls{display:flex;gap:10px;justify-content:center;margin:14px 0}
-    button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;background:#0f7ad1;color:#fff;font-weight:700}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .badge{display:inline-block;background:#eef6ff;color:#0f7ad1;border-radius:999px;padding:4px 10px;font-size:12px;margin-right:6px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #eee;text-align:center}
-    th{background:#fafafa}
-    .err{background:#fff0f0;color:#b00020;border:1px solid #f3c7c7;padding:10px;border-radius:10px;margin:10px 0;text-align:center}
+    body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    #error { color: red; display: none; margin: 10px; }
+    .chart { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Stock Shira – NVDA &amp; GOOGL 📈</h1>
-    <div class="muted">נתוני מניות מאוגוסט 2025 עם עדכון יומי</div>
-    <div class="controls">
-      <button id="loadBtn">טעני נתונים…</button>
-      <span id="status" class="badge">מוכן</span>
-    </div>
-  </header>
+  <h1>Stock Shira – NVDA & 📈 GOOGL</h1>
+  <p>נתוני מניות מאוגוסט 2025 עם עדכון יומי</p>
 
-  <main class="wrap">
-    <div id="errorBox" class="err" style="display:none"></div>
+  <button id="loadBtn">טעני נתונים...</button>
+  <div id="error"></div>
 
-    <div class="row">
-      <div class="card">
-        <h3 style="margin:6px 0 10px">NVDA – היסטוריה</h3>
-        <canvas id="chartNVDA" height="260"></canvas>
-      </div>
-      <div class="card">
-        <h3 style="margin:6px 0 10px">GOOGL – היסטוריה</h3>
-        <canvas id="chartGOOGL" height="260"></canvas>
-      </div>
-    </div>
+  <h2>NVDA – היסטוריה</h2>
+  <pre id="nvdaBox" class="chart"></pre>
 
-    <div class="card" style="margin-top:14px">
-      <h3 style="margin:6px 0 12px">סיכום אחרון</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>סימול</th>
-            <th>תאריך</th>
-            <th>פתיחה</th>
-            <th>גבוה</th>
-            <th>נמוך</th>
-            <th>סגירה</th>
-            <th>נפח</th>
-          </tr>
-        </thead>
-        <tbody id="lastRows">
-          <tr><td colspan="7" class="muted">…טוען</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </main>
+  <h2>GOOGL – היסטוריה</h2>
+  <pre id="googlBox" class="chart"></pre>
 
   <script>
-  // -------- הגדרות --------
-  const SYMBOLS = ["NVDA", "GOOGL"];                // אפשר להרחיב בהמשך
-  const SINCE = "2025-08-01";                       // היסטוריה מאז תאריך זה
-  const INTERVAL = "1d";                            // מרווח דגימה
-  const statusEl = document.getElementById("status");
-  const errorBox = document.getElementById("errorBox");
-  const loadBtn = document.getElementById("loadBtn");
+    const errorBox = document.getElementById("error");
+    const nvdaBox = document.getElementById("nvdaBox");
+    const googlBox = document.getElementById("googlBox");
+    const loadBtn = document.getElementById("loadBtn");
 
-  // ממיר תאריך לאוניקס (שניות) ל-Yahoo
-  function toUnix(dateStr) {
-    return Math.floor(new Date(dateStr + "T00:00:00Z").getTime() / 1000);
-  }
+    async function fetchWithProxy(url) {
+      const proxy = "https://api.allorigins.win/raw?url=";
+      const res = await fetch(proxy + encodeURIComponent(url));
+      if (!res.ok) throw new Error("בעיה בטעינה");
+      return res.json();
+    }
 
-  // בקשת Yahoo Finance Chart API
-  async function fetchYahoo(symbol, period1Unix, period2Unix, interval) {
-    const base = "https://query1.finance.yahoo.com/v8/finance/chart";
-    const url = `${base}/${encodeURIComponent(symbol)}?period1=${period1Unix}&period2=${period2Unix}&interval=${interval}&includePrePost=false&events=div%2Csplit`;
-    const res = await fetch(url, { mode: "cors" });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${symbol}`);
-    const json = await res.json();
-    // מסלול בטוח לנתונים
-    const r = json?.chart?.result?.[0];
-    if (!r) throw new Error(`No data for ${symbol}`);
-    const t = r.timestamp || [];
-    const o = r.indicators?.quote?.[0]?.open || [];
-    const h = r.indicators?.quote?.[0]?.high || [];
-    const l = r.indicators?.quote?.[0]?.low || [];
-    const c = r.indicators?.quote?.[0]?.close || [];
-    const v = r.indicators?.quote?.[0]?.volume || [];
-    const rows = t.map((ts, i) => ({
-      date: new Date(ts * 1000),
-      open: o[i], high: h[i], low: l[i], close: c[i], volume: v[i]
-    })).filter(r => Number.isFinite(r.close));
-    return rows;
-  }
+    async function loadAll() {
+      errorBox.style.display = "none";
+      nvdaBox.textContent = "טוען...";
+      googlBox.textContent = "טוען...";
+      try {
+        // NVDA
+        const nvda = await fetchWithProxy("https://query1.finance.yahoo.com/v8/finance/chart/NVDA?interval=1d&range=1mo");
+        nvdaBox.textContent = JSON.stringify(nvda.chart.result[0].meta, null, 2);
 
-  // ציור גרף
-  function drawChart(canvasId, rows, label) {
-    const ctx = document.getElementById(canvasId).getContext("2d");
-    const labels = rows.map(r => r.date.toISOString().slice(0,10));
-    const closes = rows.map(r => r.close);
-    // הימנעות מכפילויות – הורס אם יש קנבס קיים
-    if (ctx._chart) ctx._chart.destroy?.();
-    const chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label,
-          data: closes,
-          tension: .2,
-          borderWidth: 2,
-          pointRadius: 0
-        }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        scales: {
-          x: { ticks: { autoSkip: true, maxTicksLimit: 8 } },
-          y: { beginAtZero: false }
-        },
-        plugins: { legend: { display: false } }
+        // GOOGL
+        const googl = await fetchWithProxy("https://query1.finance.yahoo.com/v8/finance/chart/GOOGL?interval=1d&range=1mo");
+        googlBox.textContent = JSON.stringify(googl.chart.result[0].meta, null, 2);
+
+      } catch (err) {
+        console.error(err);
+        errorBox.textContent = "שגיאה בטעינת נתונים: " + err.message;
+        errorBox.style.display = "block";
       }
-    });
-    ctx._chart = chart;
-  }
-
-  function human(n) {
-    if (n == null) return "—";
-    return Number(n).toLocaleString("he-IL", { maximumFractionDigits: 2 });
     }
 
-  function setStatus(t){ statusEl.textContent = t; }
-
-  async function loadAll() {
-    errorBox.style.display = "none";
-    setStatus("טוען…");
-    loadBtn.disabled = true;
-    try {
-      const p1 = toUnix(SINCE);
-      const p2 = Math.floor(Date.now() / 1000);
-      const all = await Promise.all(SYMBOLS.map(s => fetchYahoo(s, p1, p2, INTERVAL)));
-      // גרפים
-      drawChart("chartNVDA", all[0], "NVDA");
-      drawChart("chartGOOGL", all[1], "GOOGL");
-
-      // טבלה – שורה אחרונה לכל סימול
-      const tbody = document.getElementById("lastRows");
-      tbody.innerHTML = "";
-      SYMBOLS.forEach((sym, i) => {
-        const rows = all[i];
-        const last = rows[rows.length - 1];
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><b>${sym}</b></td>
-          <td>${last?.date?.toISOString().slice(0,10) || "—"}</td>
-          <td>${human(last?.open)}</td>
-          <td>${human(last?.high)}</td>
-          <td>${human(last?.low)}</td>
-          <td>${human(last?.close)}</td>
-          <td>${human(last?.volume)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      setStatus("עודכן ✓");
-    } catch (err) {
-      console.error(err);
-      errorBox.textContent = "שגיאה בטעינת נתונים: " + err.message + "‏ (Yahoo)";
-      errorBox.style.display = "block";
-      setStatus("נכשל ✗");
-    } finally {
-      loadBtn.disabled = false;
-    }
-  }
-
-  // טעינה אוטומטית + כפתור ידני
-  loadBtn.addEventListener("click", loadAll);
-  window.addEventListener("load", loadAll);
+    loadBtn.addEventListener("click", loadAll);
+    window.addEventListener("load", loadAll);
   </script>
 </body>
 </html>

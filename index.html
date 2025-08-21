@@ -1,98 +1,142 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>Stock Shira - NVDA & GOOGL</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock Shira – NVDA & GOOGL 📈</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      direction: rtl;
-      background: #f4f6f9;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      color: #333;
-    }
-    .chart-container {
-      width: 90%;
-      max-width: 900px;
-      margin: 20px auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    button {
-      margin: 20px;
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      background: #007bff;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
-    }
+    body{font-family:Arial, sans-serif; background:#f4f6f9; margin:0; padding:20px; text-align:center}
+    h1{color:#333}
+    .wrap{max-width:980px; margin:0 auto}
+    .row{display:flex; gap:16px; flex-wrap:wrap; justify-content:center}
+    .card{background:#fff; border-radius:14px; box-shadow:0 6px 16px rgba(0,0,0,.06); padding:16px; flex:1 1 420px}
+    button{background:#0f62fe; color:#fff; border:0; padding:10px 16px; border-radius:10px; cursor:pointer}
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .muted{color:#666; font-size:.9rem}
   </style>
 </head>
 <body>
-  <h1>📈 Stock Shira - NVDA & GOOGL</h1>
-  <p>נתוני מניות מאוגוסט 2025 עם עדכון יומי</p>
+  <div class="wrap">
+    <h1>Stock Shira - NVDA &amp; GOOGL 📈</h1>
+    <div class="muted">נתוני מניות מאוגוסט 2025 עם עדכון ידני</div>
+    <p><button id="refreshBtn">טוען נתונים…</button></p>
 
-  <button onclick="loadStockData()">עדכן נתונים עכשיו</button>
-
-  <div class="chart-container">
-    <canvas id="nvdaChart"></canvas>
-  </div>
-
-  <div class="chart-container">
-    <canvas id="googlChart"></canvas>
+    <div class="row">
+      <div class="card">
+        <h3>NVDA (סגירה)</h3>
+        <canvas id="nvdaChart" height="260"></canvas>
+        <div id="nvdaInfo" class="muted"></div>
+      </div>
+      <div class="card">
+        <h3>GOOGL (סגירה)</h3>
+        <canvas id="googlChart" height="260"></canvas>
+        <div id="googlInfo" class="muted"></div>
+      </div>
+    </div>
   </div>
 
   <script>
-    async function fetchStock(symbol) {
-      const apiKey = "demo"; // אפשר להחליף ל-API אמיתי אם תרצי
-      const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
-      const response = await fetch(url);
-      return response.json();
+    // ---- הגדרות ----
+    const START_FROM = new Date('2025-08-01'); // תחילת אוגוסט 2025
+    // מיפוי סימבולים ל-Stooq (סיומת .us לשוק ארה"ב)
+    const STQ = { NVDA: 'nvda.us', GOOGL: 'googl.us' };
+
+    // ---- עזר: הורדת CSV ופרסוס ----
+    async function fetchStooqCSV(symbol) {
+      const url = `https://stooq.com/q/d/l/?s=${symbol}&i=d`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Stooq ${symbol} HTTP ${res.status}`);
+      const text = await res.text();
+      return parseCSV(text);
     }
 
-    function buildChart(ctx, data, label) {
-      const dates = Object.keys(data).slice(0, 20).reverse();
-      const prices = dates.map(d => parseFloat(data[d]["4. close"]));
-      new Chart(ctx, {
-        type: "line",
+    function parseCSV(csvText) {
+      // פורמט: Date,Open,High,Low,Close,Volume
+      const lines = csvText.trim().split(/\r?\n/);
+      const header = lines.shift();
+      const idx = header.split(',').reduce((m, h, i) => (m[h.trim()] = i, m), {});
+      const rows = [];
+      for (const line of lines) {
+        const c = line.split(',');
+        const d = new Date(c[idx.Date]);
+        if (isNaN(d)) continue;
+        rows.push({
+          date: d,
+          open:  +c[idx.Open],
+          high:  +c[idx.High],
+          low:   +c[idx.Low],
+          close: +c[idx.Close],
+          vol:   +c[idx.Volume],
+        });
+      }
+      return rows;
+    }
+
+    // ---- ציור גרף ----
+    function drawLineChart(canvasId, rows, label) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      const labels = rows.map(r => r.date.toISOString().slice(0,10));
+      const data = rows.map(r => r.close);
+      return new Chart(ctx, {
+        type: 'line',
         data: {
-          labels: dates,
+          labels,
           datasets: [{
             label: label,
-            data: prices,
-            borderColor: "#007bff",
-            backgroundColor: "rgba(0, 123, 255, 0.2)",
-            tension: 0.3
+            data,
+            borderWidth: 2,
+            tension: .2,
+            pointRadius: 0
           }]
         },
-        options: { responsive: true }
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { maxRotation: 0, autoSkip: true } },
+            y: { beginAtZero: false }
+          }
+        }
       });
     }
 
-    async function loadStockData() {
-      document.querySelector("button").innerText = "טוען נתונים...";
-      const nvda = await fetchStock("NVDA");
-      const googl = await fetchStock("GOOGL");
+    // ---- זרימה ראשית ----
+    const btn = document.getElementById('refreshBtn');
+    let charts = {};
 
-      buildChart(document.getElementById("nvdaChart"), nvda["Time Series (Daily)"], "NVDA");
-      buildChart(document.getElementById("googlChart"), googl["Time Series (Daily)"], "GOOGL");
+    async function loadAll() {
+      btn.disabled = true; btn.textContent = 'טוען…';
+      try {
+        // NVDA
+        const nvdaAll = await fetchStooqCSV(STQ.NVDA);
+        const nvda = nvdaAll.filter(r => r.date >= START_FROM);
+        if (charts.nvda) charts.nvda.destroy();
+        charts.nvda = drawLineChart('nvdaChart', nvda, 'NVDA');
+        document.getElementById('nvdaInfo').textContent =
+          nvda.length ? `עודכנו ${nvda.length} ימים מאז 2025‑08‑01` : 'אין נתונים לתקופה המבוקשת';
 
-      document.querySelector("button").innerText = "עדכן נתונים עכשיו";
+        // GOOGL
+        const googlAll = await fetchStooqCSV(STQ.GOOGL);
+        const googl = googlAll.filter(r => r.date >= START_FROM);
+        if (charts.googl) charts.googl.destroy();
+        charts.googl = drawLineChart('googlChart', googl, 'GOOGL');
+        document.getElementById('googlInfo').textContent =
+          googl.length ? `עודכנו ${googl.length} ימים מאז 2025‑08‑01` : 'אין נתונים לתקופה המבוקשת';
+
+        btn.textContent = 'רענן נתונים';
+      } catch (e) {
+        console.error(e);
+        alert('נכשלה טעינת הנתונים (Stooq). נסי שוב מאוחר יותר.');
+        btn.textContent = 'נסה שוב';
+      } finally {
+        btn.disabled = false;
+      }
     }
 
-    loadStockData(); // טוען אוטומטית כשנכנסים
+    btn.addEventListener('click', loadAll);
+    // טעינה מידית בנחיתה
+    loadAll();
   </script>
 </body>
 </html>

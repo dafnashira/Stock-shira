@@ -1,257 +1,98 @@
-<!doctype html>
-<html lang="he" dir="rtl">
+<!DOCTYPE html>
+<html lang="he">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>מעקב מניות • נתונים אמיתיים (Stooq + CoinGecko)</title>
-  <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;מעקב מניות&quot;,&quot;short_name&quot;:&quot;Stocks&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;}" />
+  <meta charset="UTF-8">
+  <title>Stock Shira - NVDA & GOOGL</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --ok:#16a34a; --warn:#f59e0b; --err:#ef4444; --ink:#e5e7eb; --accent:#38bdf8; }
-    html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:980px;margin:auto;padding:16px}
-    .card{background:var(--card);border-radius:14px;padding:14px 16px;margin:12px 0;box-shadow:0 2px 14px rgb(0 0 0 / .25)}
-    h1{margin:10px 0 6px;font-size:28px}
-    small.muted{color:var(--muted)}
-    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    input,button,textarea{border-radius:10px;border:1px solid #334155;background:#0b1220;color:var(--ink);padding:10px 12px}
-    button{cursor:pointer}
-    button.primary{background:#0ea5e9;border-color:#0284c7}
-    button.ghost{background:#0b1220}
-    button.success{background:#16a34a;border-color:#15803d}
-    button.warn{background:#f59e0b;border-color:#d97706}
-    .grid{overflow:auto}
-    table{width:100%;border-collapse:collapse;font-size:14px}
-    th,td{border-bottom:1px solid #1f2937;padding:10px 8px;text-align:right;white-space:nowrap}
-    th{position:sticky;top:0;background:#0b1220;z-index:1}
-    .tag{display:inline-block;background:#0b1220;border:1px solid #334155;border-radius:8px;padding:6px 10px;margin:6px 6px 0 0}
-    .ok{color:var(--ok)} .warnc{color:var(--warn)} .err{color:var(--err)}
-    .foot{color:var(--muted);font-size:12px;margin-top:10px}
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      direction: rtl;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .chart-container {
+      width: 90%;
+      max-width: 900px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    button {
+      margin: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>מעקב מניות • נתונים אמיתיים</h1>
-    <small class="muted">מקורות: Stooq (מניות/מדדים), CoinGecko (קריפטו). שמירה מקומית בלבד.</small>
+  <h1>📈 Stock Shira - NVDA & GOOGL</h1>
+  <p>נתוני מניות מאוגוסט 2025 עם עדכון יומי</p>
 
-    <div class="card">
-      <div class="row">
-        <label for="symbols"><strong>רשימת סימולים (CSV)</strong></label>
-      </div>
-      <textarea id="symbols" rows="2" style="width:100%">GOOGL,AAPL,NVDA,PLTR,META,BTC-USD,ETH-USD,^GSPC,^NDX,^VIX</textarea>
+  <button onclick="loadStockData()">עדכן נתונים עכשיו</button>
 
-      <div class="row" style="margin-top:8px">
-        <button id="btnUpdate" class="primary">עדכון נתוני היום</button>
-        <button id="btnHistory" class="ghost">ייבוא היסטורי מאוגוסט 2025</button>
-        <span id="status" class="tag">מוכן</span>
-      </div>
-      <small class="foot">
-        טיפים: למניות אמריקאיות נדרש מיפוי ל-<code>.us</code> (הקוד עושה זאת אוטומטית).  
-        ל-S&amp;P500 / Nasdaq-100 / VIX השתמשי ב־<code>^GSPC</code> / <code>^NDX</code> / <code>^VIX</code>.  
-        קריפטו: <code>BTC-USD</code>, <code>ETH-USD</code>.
-      </small>
-    </div>
-
-    <div class="card grid">
-      <table id="tbl">
-        <thead>
-          <tr>
-            <th>תאריך</th><th>סימול</th><th>פתיחה</th><th>גבוה</th><th>נמוך</th><th>סגירה</th><th>נפח</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="empty" class="foot">אין נתונים עדיין.</div>
-    </div>
-
-    <div class="foot">
-      שמור מקומי: הדפדפן שלך בלבד. כדי “עדכון אוטומטי בסגירה” חייב שהעמוד יהיה פתוח; לאתר סטטי אין שרת. (אם נרצה מאוחר יותר – נוסיף GitHub Actions.)
-    </div>
+  <div class="chart-container">
+    <canvas id="nvdaChart"></canvas>
   </div>
 
-<script>
-/* ===== הגדרות עזר ומיפויים ===== */
-const LS_KEY = "stock-tracker-rows-v2";
-const START_HISTORY = "2025-08-01";
+  <div class="chart-container">
+    <canvas id="googlChart"></canvas>
+  </div>
 
-/* מיפוי סימולי משתמש -> ספק נתונים + סימול אמיתי */
-function mapSymbol(userSymbol){
-  const s = userSymbol.trim().toUpperCase();
-  // קריפטו
-  if (s === "BTC-USD") return {type:"crypto", id:"bitcoin", sym:s};
-  if (s === "ETH-USD") return {type:"crypto", id:"ethereum", sym:s};
-  // מדדים (Stooq)
-  if (s === "^GSPC") return {type:"stooq-idx", stooq:"^spx"};
-  if (s === "^NDX")  return {type:"stooq-idx", stooq:"^ndx"};
-  if (s === "^VIX")  return {type:"stooq-idx", stooq:"^vix"};
-  // מניות US (Stooq: מוסיפים .us, חלק דורשים שינוי שם)
-  const mapOverrides = {
-    "GOOGL":"googl.us",
-    "GOOG":"goog.us",
-    "META":"meta.us",
-    "AAPL":"aapl.us",
-    "NVDA":"nvda.us",
-    "PLTR":"pltr.us",
-    "ORCL":"orcl.us",
-    "MSFT":"msft.us",
-    "AMZN":"amzn.us",
-  };
-  const stooq = mapOverrides[s] || (s.toLowerCase()+".us");
-  return {type:"stooq", stooq, sym:s};
-}
-
-/* ===== הצגת טבלה ===== */
-const $tbody = document.querySelector("#tbl tbody");
-const $empty = document.getElementById("empty");
-const $status = document.getElementById("status");
-
-function setStatus(txt, cls=""){ $status.textContent = txt; $status.className = "tag "+cls; }
-
-function loadRows(){
-  try { return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); } catch { return []; }
-}
-function saveRows(rows){ localStorage.setItem(LS_KEY, JSON.stringify(rows)); }
-
-function render(){
-  const rows = loadRows().sort((a,b)=> a.symbol.localeCompare(b.symbol) || b.date.localeCompare(a.date));
-  $tbody.innerHTML = "";
-  if(!rows.length){ $empty.style.display="block"; return; }
-  $empty.style.display="none";
-  for(const r of rows){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.date}</td>
-      <td>${r.symbol}</td>
-      <td>${fmt(r.open)}</td>
-      <td>${fmt(r.high)}</td>
-      <td>${fmt(r.low)}</td>
-      <td>${fmt(r.close)}</td>
-      <td>${r.volume??""}</td>`;
-    $tbody.appendChild(tr);
-  }
-}
-function fmt(x){ return (x===null||x===undefined||x==="") ? "" : Number(x).toLocaleString(undefined,{maximumFractionDigits:4}); }
-
-/* ===== מקורות נתונים ===== */
-// Stooq – נר יומי אחרון (CSV)
-async function fetchStooqQuote(stooqSym){
-  const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSym)}&f=sd2t2ohlcv&h&e=csv`;
-  const csv = await (await fetch(url)).text();
-  // כותרת + שורה אחת
-  // Symbol,Date,Time,Open,High,Low,Close,Volume
-  const line = csv.trim().split("\n")[1];
-  if(!line) throw new Error("No quote");
-  const [Symbol,Date,Time,Open,High,Low,Close,Volume] = line.split(",");
-  return { date: Date, open:+Open||null, high:+High||null, low:+Low||null, close:+Close||null, volume: Volume||null };
-}
-// Stooq – היסטוריה יומית (CSV)
-async function fetchStooqHistory(stooqSym){
-  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`;
-  const text = await (await fetch(url)).text();
-  // Date,Open,High,Low,Close,Volume
-  const out = [];
-  for(const line of text.trim().split("\n").slice(1)){
-    const [Date,Open,High,Low,Close,Volume] = line.split(",");
-    out.push({ date:Date, open:+Open||null, high:+High||null, low:+Low||null, close:+Close||null, volume:Volume||null });
-  }
-  return out;
-}
-// CoinGecko – מחיר עדכני
-async function fetchCoinGeckoNow(id){
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd`;
-  const json = await (await fetch(url)).json();
-  const price = json?.[id]?.usd;
-  if(price===undefined) throw new Error("No price");
-  const today = new Date(); const d = today.toISOString().slice(0,10);
-  return { date: d, open:null, high:null, low:null, close:+price, volume:null };
-}
-// CoinGecko – היסטוריה יומית (אחרון 90 יום לבקשה; נבצע דפדוף פשוט)
-async function fetchCoinGeckoHistory(id){
-  // נשתמש ב- market_chart שקוף ל-CORS
-  const days = Math.ceil((Date.now()-new Date(START_HISTORY).getTime())/86400000) + 2;
-  const url = `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`;
-  const json = await (await fetch(url)).json();
-  if(!json?.prices) throw new Error("No history");
-  // ניקח Close יומי (sample at end-of-day)
-  const byDay = {};
-  for(const [ts,price] of json.prices){
-    const d = new Date(ts).toISOString().slice(0,10);
-    byDay[d] = price; // נשאיר האחרון בכל יום
-  }
-  const out = [];
-  for(const d of Object.keys(byDay).sort()){
-    if(d >= START_HISTORY) out.push({ date:d, open:null, high:null, low:null, close:+byDay[d], volume:null });
-  }
-  return out;
-}
-
-/* ===== פעולות עיקריות ===== */
-function parseSymbols(){
-  const raw = document.getElementById("symbols").value.split(",").map(s=>s.trim()).filter(Boolean);
-  // הסרת כפילויות תוך שמירת סדר
-  const seen = new Set(); const out = [];
-  for(const s of raw){ if(!seen.has(s.toUpperCase())){ seen.add(s.toUpperCase()); out.push(s.toUpperCase()); } }
-  return out;
-}
-
-async function updateToday(){
-  const syms = parseSymbols();
-  setStatus("מעדכן נתוני היום…");
-  const rows = loadRows();
-  let ok=0, fail=[];
-  for(const s of syms){
-    const m = mapSymbol(s);
-    try{
-      let r;
-      if(m.type==="crypto") r = await fetchCoinGeckoNow(m.id);
-      else if(m.type==="stooq" || m.type==="stooq-idx") r = await fetchStooqQuote(m.stooq || m.sym);
-      else throw new Error("unknown type");
-      // מחיקה של רשומה קיימת לאותו תאריך+סימול
-      const key = (x)=> x.symbol===s && x.date===r.date;
-      for(let i=rows.length-1;i>=0;i--) if(key(rows[i])) rows.splice(i,1);
-      rows.push({symbol:s, ...r});
-      ok++;
-    }catch(e){
-      fail.push(s);
-      console.warn("updateToday failed", s, e);
+  <script>
+    async function fetchStock(symbol) {
+      const apiKey = "demo"; // אפשר להחליף ל-API אמיתי אם תרצי
+      const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
+      const response = await fetch(url);
+      return response.json();
     }
-  }
-  saveRows(rows); render();
-  setStatus(`עודכנו ${ok}, כשלו ${fail.length}${fail.length?": "+fail.join(" "):""}`, fail.length? "warnc":"ok");
-}
 
-async function importHistory(){
-  const syms = parseSymbols();
-  setStatus("מייבא היסטוריה מאוגוסט 2025…");
-  const rows = loadRows();
-  let added=0, fail=[];
-  for(const s of syms){
-    const m = mapSymbol(s);
-    try{
-      let hist = [];
-      if(m.type==="crypto") hist = await fetchCoinGeckoHistory(m.id);
-      else if(m.type==="stooq" || m.type==="stooq-idx") hist = await fetchStooqHistory(m.stooq || m.sym);
-      else throw new Error("unknown type");
-      for(const r of hist){
-        if(r.date < START_HISTORY) continue;
-        // אל תכניס כפילויות
-        if(!rows.some(x=> x.symbol===s && x.date===r.date)){
-          rows.push({symbol:s, ...r}); added++;
-        }
-      }
-    }catch(e){
-      fail.push(s);
-      console.warn("history failed", s, e);
+    function buildChart(ctx, data, label) {
+      const dates = Object.keys(data).slice(0, 20).reverse();
+      const prices = dates.map(d => parseFloat(data[d]["4. close"]));
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: dates,
+          datasets: [{
+            label: label,
+            data: prices,
+            borderColor: "#007bff",
+            backgroundColor: "rgba(0, 123, 255, 0.2)",
+            tension: 0.3
+          }]
+        },
+        options: { responsive: true }
+      });
     }
-  }
-  saveRows(rows); render();
-  setStatus(`נוספו ${added} שורות, כשלו ${fail.length}${fail.length?": "+fail.join(" "):""}`, fail.length? "warnc":"ok");
-}
 
-/* ===== אתחול ===== */
-document.getElementById("btnUpdate").addEventListener("click", updateToday);
-document.getElementById("btnHistory").addEventListener("click", importHistory);
+    async function loadStockData() {
+      document.querySelector("button").innerText = "טוען נתונים...";
+      const nvda = await fetchStock("NVDA");
+      const googl = await fetchStock("GOOGL");
 
-render();
-</script>
+      buildChart(document.getElementById("nvdaChart"), nvda["Time Series (Daily)"], "NVDA");
+      buildChart(document.getElementById("googlChart"), googl["Time Series (Daily)"], "GOOGL");
+
+      document.querySelector("button").innerText = "עדכן נתונים עכשיו";
+    }
+
+    loadStockData(); // טוען אוטומטית כשנכנסים
+  </script>
 </body>
 </html>

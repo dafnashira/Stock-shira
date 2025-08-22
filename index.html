@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Stock Shira – Portfolio</title>
+<title>Stock Shira – Portfolio (5y Monthly & Yearly)</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -30,12 +30,12 @@
   .btn-danger{background:#e11d48}
 
   .grid{display:grid; gap:18px; grid-template-columns:1fr}
-  @media (min-width:820px){ .grid{grid-template-columns:1fr 1fr} }
+  @media (min-width:980px){ .grid{grid-template-columns:1fr 1fr} }
 
   .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
   .title{font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center}
   .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-  input[type="text"]{padding:10px 12px; border-radius:10px; border:1px solid #dbe1ea; font-size:15px; background:#fff; width:220px}
+  input[type="text"]{padding:10px 12px; border-radius:10px; border:1px solid #dbe1ea; font-size:15px; background:#fff; width:240px}
   label{font-size:13px; color:var(--muted)}
 
   #error{display:none; background:var(--err-bg); color:var(--err-ink); padding:10px; border-radius:10px; margin:12px 0}
@@ -47,7 +47,7 @@
   tbody td{padding:9px 8px; text-align:center; border-bottom:1px solid var(--border)}
   tbody tr:nth-child(even){background:var(--row-even)}
   tbody tr:hover{background:#eef6ff}
-  td:nth-child(6){font-weight:700} /* עמודת סגירה מודגשת */
+  td:nth-child(5){font-weight:700} /* עמודת סגירה מודגשת בכל הטבלאות */
 
   /* חיווי סגירה: ירוק/אדום + רקע + חץ */
   .up, .down, .flat{
@@ -62,8 +62,9 @@
 
   .mini{font-size:12px; color:var(--muted)}
   .cap{letter-spacing:.5px}
-  .chartbox{border:1px solid var(--border); border-radius:12px; padding:8px; background:#fff}
+  .chartbox{border:1px solid var(--border); border-radius:12px; padding:8px; background:#fff; margin-bottom:10px}
   canvas{width:100%; max-height:260px}
+  .section{margin-top:10px; font-weight:700}
 </style>
 </head>
 <body>
@@ -72,7 +73,7 @@
     <h1>📈 Stock Shira – Portfolio</h1>
     <span class="pill" id="today">—</span>
   </div>
-  <div class="muted">נתוני מניות מאוגוסט 2025, גרפים, סיכום יומי, והוספה חופשית של סימולים.</div>
+  <div class="muted">5 שנים אחרונות (חודשי + סיכום שנתי) • גרפים, חיפוש והוספת סימולים (כולל קריפטו).</div>
 
   <div id="ok">הנתונים נטענו בהצלחה.</div>
   <div id="error"></div>
@@ -86,23 +87,23 @@
   <div class="card" style="margin-bottom:16px">
     <div class="row">
       <div>
-        <label for="addSymbol">הוספת מניה (סימול בורסה אמריקאית)</label><br>
-        <input id="addSymbol" list="popular" placeholder="לדוגמה: TSLA / NFLX / PANW">
+        <label for="addSymbol">הוספת סימול (מניות/קריפטו ב־Yahoo)</label><br>
+        <input id="addSymbol" list="popular" placeholder="לדוגמה: TSLA / INTC / HOOD / BTC-USD">
         <datalist id="popular">
           <option value="NVDA"><option value="GOOGL"><option value="CMS"><option value="PLTR">
-          <option value="PANW"><option value="AAPL"><option value="MSFT"><option value="AMZN">
-          <option value="META"><option value="TSLA"><option value="ORCL"><option value="NFLX">
+          <option value="PANW"><option value="MSFT"><option value="INTC"><option value="HOOD">
+          <option value="BTC-USD"><option value="AMZN"><option value="META"><option value="TSLA">
         </datalist>
       </div>
       <button id="addBtn" class="btn-ghost">הוסיפי</button>
-      <span class="mini">טיפ: לחצי Enter בשדה להוספה מהירה</span>
+      <span class="mini">טיפ: Enter בשדה להוספה מהירה</span>
     </div>
   </div>
 
   <div class="card" style="margin-bottom:18px">
     <div class="title">
-      <span>סיכום אחרון</span>
-      <span class="mini">התאריך לפי יום המסחר האחרון לכל מניה</span>
+      <span>סיכום אחרון (Daily)</span>
+      <span class="mini">יום המסחר האחרון לכל סימול</span>
     </div>
     <div style="overflow:auto">
       <table id="lastTbl">
@@ -123,11 +124,14 @@ document.getElementById("today").textContent =
   new Date().toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
 
 /* ===== מצב האפליקציה ===== */
-const START_ISO = "2025-08-01";
+const YEARS = 5; // שנים אחורה
 const state = {
-  symbols: new Set(["NVDA","GOOGL","CMS","PLTR","PANW","AAPL","MSFT"]),
+  // הסרתי AAPL; הוספתי INTC, HOOD, BTC-USD
+  symbols: new Set(["NVDA","GOOGL","CMS","PLTR","PANW","MSFT","INTC","HOOD","BTC-USD"]),
   charts: new Map(),   // symbol -> Chart instance
-  data: new Map()      // symbol -> rows
+  dataDaily: new Map(), // symbol -> rows daily
+  dataMonthly: new Map(), // symbol -> rows monthly agg
+  dataYearly: new Map()  // symbol -> rows yearly agg
 };
 const $ = s => document.querySelector(s);
 const cardsEl = $("#cards");
@@ -142,7 +146,7 @@ function showOk(msg){ okBox.style.display="block"; okBox.textContent=msg||"בו�
 function clearOk(){ okBox.style.display="none"; }
 function showErr(msg){ errBox.style.display="block"; errBox.textContent=msg; }
 function clearErr(){ errBox.style.display="none"; }
-function refreshCount(){ countPill.textContent = `${state.symbols.size} מניות`; }
+function refreshCount(){ countPill.textContent = `${state.symbols.size} סימולים`; }
 
 /* ===== פרוקסי + Yahoo ===== */
 function proxyChain(url){
@@ -168,21 +172,65 @@ async function fetchWithFallback(url){
   throw lastErr || new Error("fetch failed");
 }
 function yahooUrl(symbol){
-  const p1 = Math.floor(new Date(`${START_ISO}T00:00:00Z`).getTime()/1000);
-  const p2 = Math.floor(Date.now()/1000);
+  const now = new Date();
+  const start = new Date(now);
+  start.setFullYear(now.getFullYear() - YEARS);
+  const p1 = Math.floor(start.getTime()/1000);
+  const p2 = Math.floor(now.getTime()/1000);
   return `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${p1}&period2=${p2}&interval=1d&includeAdjustedClose=true`;
 }
 function parseYahooChart(j){
   const r = j?.chart?.result?.[0];
-  const t = r.timestamp || [];
-  const q = r.indicators?.quote?.[0] || {};
+  const t = r?.timestamp || [];
+  const q = r?.indicators?.quote?.[0] || {};
   return t.map((sec,i)=>({
     date:new Date(sec*1000),
     open:q.open?.[i], high:q.high?.[i], low:q.low?.[i], close:q.close?.[i], volume:q.volume?.[i]
-  })).filter(r=>r.close!=null);
+  })).filter(r=>typeof r.close==="number");
 }
 
-/* ===== טבלאות/חיצים ===== */
+/* ===== אגירה חודשית/שנתית ===== */
+const keyMonth = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+const keyYear  = d => `${d.getFullYear()}`;
+
+function aggregateMonthly(rows){
+  const map = new Map();
+  for(const r of rows){
+    const k = keyMonth(r.date);
+    if(!map.has(k)){
+      map.set(k,{key:k, firstDate:r.date, lastDate:r.date, open:r.open, high:r.high, low:r.low, close:r.close, volume:r.volume||0});
+    }else{
+      const m = map.get(k);
+      // update
+      if(r.date < m.firstDate){ m.firstDate = r.date; m.open = r.open; }
+      if(r.date > m.lastDate){ m.lastDate  = r.date; m.close = r.close; }
+      m.high = Math.max(m.high, r.high);
+      m.low  = Math.min(m.low,  r.low);
+      m.volume += r.volume || 0;
+    }
+  }
+  return Array.from(map.values()).sort((a,b)=> a.firstDate - b.firstDate);
+}
+
+function aggregateYearly(rows){
+  const map = new Map();
+  for(const r of rows){
+    const k = keyYear(r.date);
+    if(!map.has(k)){
+      map.set(k,{key:k, firstDate:r.date, lastDate:r.date, open:r.open, high:r.high, low:r.low, close:r.close, volume:r.volume||0});
+    }else{
+      const y = map.get(k);
+      if(r.date < y.firstDate){ y.firstDate = r.date; y.open = r.open; }
+      if(r.date > y.lastDate){ y.lastDate  = r.date; y.close = r.close; }
+      y.high = Math.max(y.high, r.high);
+      y.low  = Math.min(y.low,  r.low);
+      y.volume += r.volume || 0;
+    }
+  }
+  return Array.from(map.values()).sort((a,b)=> a.firstDate - b.firstDate);
+}
+
+/* ===== עזרי תצוגה ===== */
 function fmtDate(d){return d.toISOString().slice(0,10);}
 function fmtNum(n){return (n==null||isNaN(n))?"-":Number(n).toLocaleString("he-IL",{maximumFractionDigits:2});}
 function closeCell(o,c){
@@ -193,7 +241,7 @@ function closeCell(o,c){
   return `<span class="${cls}" aria-label="${aria}">${fmtNum(c)}<span class="arrow">${arrow}</span></span>`;
 }
 
-/* ===== כרטיס מניה ===== */
+/* ===== כרטיס סימול ===== */
 function ensureCard(symbol){
   if(document.getElementById(`card-${symbol}`)) return;
   const card = document.createElement("div");
@@ -201,16 +249,27 @@ function ensureCard(symbol){
   card.id = `card-${symbol}`;
   card.innerHTML = `
     <div class="title">
-      <span>${symbol} — היסטוריה</span>
+      <span>${symbol} — 5y Monthly / Yearly</span>
       <button class="btn-danger" data-remove="${symbol}" title="הסירי">✖</button>
     </div>
     <div class="chartbox"><canvas id="chart-${symbol}" aria-label="גרף ${symbol}"></canvas></div>
-    <div style="margin-top:10px; overflow:auto">
+
+    <div class="section">חודשי — 5 שנים</div>
+    <div style="overflow:auto">
       <table>
-        <thead><tr><th>תאריך</th><th>פתיחה</th><th>גבוה</th><th>נמוך</th><th>סגירה</th><th>נפח</th></tr></thead>
-        <tbody id="tbody-${symbol}"><tr><td colspan="6">…טוען</td></tr></tbody>
+        <thead><tr><th>חודש</th><th>פתיחה</th><th>גבוה</th><th>נמוך</th><th>סגירה</th><th>נפח</th></tr></thead>
+        <tbody id="tbody-month-${symbol}"><tr><td colspan="6">…טוען</td></tr></tbody>
       </table>
-    </div>`;
+    </div>
+
+    <div class="section">סיכום שנתי</div>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>שנה</th><th>פתיחה</th><th>גבוה</th><th>נמוך</th><th>סגירה</th><th>נפח</th></tr></thead>
+        <tbody id="tbody-year-${symbol}"><tr><td colspan="6">…טוען</td></tr></tbody>
+      </table>
+    </div>
+  `;
   cardsEl.appendChild(card);
 
   // הסרה
@@ -218,37 +277,38 @@ function ensureCard(symbol){
     state.symbols.delete(symbol);
     state.charts.get(symbol)?.destroy();
     state.charts.delete(symbol);
-    state.data.delete(symbol);
+    state.dataDaily.delete(symbol);
+    state.dataMonthly.delete(symbol);
+    state.dataYearly.delete(symbol);
     card.remove();
     renderLastTable(); refreshCount(); showOk(`הוסרה ${symbol}`);
   });
 }
 
-/* ===== גרף (בלי time adapter: משתמשים בלייבלים טקסטואליים) ===== */
-function renderChart(symbol, rows){
+/* ===== גרף (סגירה חודשית) ===== */
+function renderChart(symbol, monthlyRows){
   const ctx = document.getElementById(`chart-${symbol}`).getContext("2d");
-  const last90 = rows.slice(-90);
-  const labels = last90.map(r=>fmtDate(r.date));
-  const closes = last90.map(r=>r.close);
+  const labels = monthlyRows.map(r=>r.key);           // YYYY-MM
+  const closes = monthlyRows.map(r=>r.close);
   if(state.charts.get(symbol)) state.charts.get(symbol).destroy();
   const chart = new Chart(ctx,{
     type:"line",
-    data:{ labels, datasets:[{ label:`${symbol} Close`, data:closes, borderWidth:2, tension:.25, pointRadius:0, fill:false }]},
+    data:{ labels, datasets:[{ label:`${symbol} (Close Monthly)`, data:closes, borderWidth:2, tension:.25, pointRadius:0, fill:false }]},
     options:{
       responsive:true,
       plugins:{ legend:{display:false}, tooltip:{mode:"index",intersect:false} },
-      scales:{ x:{ ticks:{ maxTicksLimit:6 } }, y:{ ticks:{ callback:v=>Number(v).toLocaleString("he-IL") } } }
+      scales:{ x:{ ticks:{ maxTicksLimit:8 } }, y:{ ticks:{ callback:v=>Number(v).toLocaleString("he-IL") } } }
     }
   });
   state.charts.set(symbol, chart);
 }
 
-/* ===== טבלת היסטוריה ===== */
-function renderHistoryTable(symbol, rows){
-  const body = document.getElementById(`tbody-${symbol}`);
-  const last20 = rows.slice(-20).reverse();
-  body.innerHTML = last20.map(r=>`<tr>
-    <td>${fmtDate(r.date)}</td>
+/* ===== טבלת חודשי ===== */
+function renderMonthlyTable(symbol, monthlyRows){
+  const body = document.getElementById(`tbody-month-${symbol}`);
+  const rows = [...monthlyRows].reverse(); // אחרון למעלה
+  body.innerHTML = rows.map(r=>`<tr>
+    <td>${r.key}</td>
     <td>${fmtNum(r.open)}</td>
     <td>${fmtNum(r.high)}</td>
     <td>${fmtNum(r.low)}</td>
@@ -257,12 +317,26 @@ function renderHistoryTable(symbol, rows){
   </tr>`).join("");
 }
 
-/* ===== סיכום אחרון ===== */
+/* ===== טבלת שנתי ===== */
+function renderYearlyTable(symbol, yearlyRows){
+  const body = document.getElementById(`tbody-year-${symbol}`);
+  const rows = [...yearlyRows].reverse();
+  body.innerHTML = rows.map(r=>`<tr>
+    <td>${r.key}</td>
+    <td>${fmtNum(r.open)}</td>
+    <td>${fmtNum(r.high)}</td>
+    <td>${fmtNum(r.low)}</td>
+    <td>${closeCell(r.open,r.close)}</td>
+    <td>${fmtNum(r.volume)}</td>
+  </tr>`).join("");
+}
+
+/* ===== סיכום אחרון (Daily) ===== */
 function renderLastTable(){
   if(state.symbols.size===0){ lastBody.innerHTML = `<tr><td colspan="8">—</td></tr>`; return; }
   lastBody.innerHTML = "";
   for(const s of state.symbols){
-    const rows = state.data.get(s);
+    const rows = state.dataDaily.get(s);
     if(!rows || !rows.length) continue;
     const r = rows[rows.length-1];
     const tr = document.createElement("tr");
@@ -283,7 +357,7 @@ function renderLastTable(){
   }
 }
 
-/* ===== טעינת מניה ===== */
+/* ===== טעינת סימול ===== */
 async function loadSymbol(symbol){
   symbol = symbol.toUpperCase().trim();
   if(!symbol) return;
@@ -291,12 +365,20 @@ async function loadSymbol(symbol){
   setStatus(`טוען ${symbol}…`);
   try{
     const json = await fetchWithFallback(yahooUrl(symbol));
-    const rows = parseYahooChart(json);
-    if(!rows.length) throw new Error("אין נתונים");
-    state.data.set(symbol, rows);
-    renderChart(symbol, rows);
-    renderHistoryTable(symbol, rows);
+    const daily = parseYahooChart(json);
+    if(!daily.length) throw new Error("אין נתונים");
+    const monthly = aggregateMonthly(daily);
+    const yearly  = aggregateYearly(daily);
+
+    state.dataDaily.set(symbol, daily);
+    state.dataMonthly.set(symbol, monthly);
+    state.dataYearly.set(symbol, yearly);
+
+    renderChart(symbol, monthly);
+    renderMonthlyTable(symbol, monthly);
+    renderYearlyTable(symbol, yearly);
     renderLastTable();
+
     clearErr(); showOk(`${symbol} נטען`);
   }catch(e){
     showErr(`שגיאה בטעינת ${symbol}: ${e.message||e}`);
@@ -305,7 +387,7 @@ async function loadSymbol(symbol){
   }
 }
 
-/* ===== טעינת כל הסימולים ===== */
+/* ===== טעינת כל הרשימה ===== */
 async function loadAll(){
   clearErr(); clearOk();
   setStatus("טוען הכל…");
@@ -315,7 +397,7 @@ async function loadAll(){
   setStatus("מוכן");
 }
 
-/* ===== הוספה מהירה ===== */
+/* ===== הוספה/הסרה ===== */
 function addSymbolFlow(){
   const inp = document.getElementById("addSymbol");
   const raw = inp.value.toUpperCase().trim();

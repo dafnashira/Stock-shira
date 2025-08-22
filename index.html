@@ -3,45 +3,65 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Stock Shira – NVDA & GOOGL</title>
+<title>Stock Shira – NVDA, GOOGL & CMS</title>
 <style>
-  body{font-family:Arial,system-ui; margin:0; background:#f6f7fb; color:#222}
-  .wrap{max-width:980px; margin:auto; padding:22px}
-  h1{margin:6px 0 2px; font-size:28px}
-  .muted{color:#666; font-size:14px}
-  button{background:#1f7ae0; color:#fff; border:0; border-radius:10px; padding:12px 18px; font-size:16px; cursor:pointer}
-  button:disabled{opacity:.6; cursor:not-allowed}
+  :root{
+    --bg:#f6f7fb; --card:#fff; --ink:#222;
+    --muted:#6b7280; --brand:#1f7ae0;
+    --ok-bg:#eaf9ea; --ok-ink:#136c13;
+    --err-bg:#ffe6e6; --err-ink:#a40000;
+    --head:#0f172a; --head-ink:#fff;
+    --row-even:#f9fbff;
+    --radius:14px; --shadow:0 8px 20px rgba(0,0,0,.06);
+  }
+  body{font-family:Arial,"Segoe UI",system-ui; margin:0; background:var(--bg); color:var(--ink)}
+  .wrap{max-width:1000px; margin:auto; padding:24px}
+  h1{margin:4px 0 8px; font-size:30px}
+  .muted{color:var(--muted); font-size:14px}
+  .pill{display:inline-block; padding:6px 10px; border-radius:999px; font-size:13px; background:#eef2ff}
+  button{background:var(--brand); color:#fff; border:0; border-radius:12px; padding:12px 18px; font-size:16px; cursor:pointer; box-shadow:0 6px 14px rgba(31,122,224,.22)}
+  button:disabled{opacity:.6; cursor:not-allowed; box-shadow:none}
+  .topbar{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
   .row{display:grid; gap:18px; grid-template-columns:1fr}
-  @media(min-width:760px){ .row{grid-template-columns:1fr 1fr} }
-  .card{background:#fff; border-radius:14px; box-shadow:0 8px 20px rgba(0,0,0,.06); padding:16px 18px; min-height:220px}
+  @media(min-width:760px){ .row{grid-template-columns:1fr 1fr 1fr} }
+  .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; min-height:220px}
   .title{font-weight:700; margin-bottom:10px}
-  table{width:100%; border-collapse:collapse; font-size:14px}
-  th,td{padding:8px 6px; border-bottom:1px solid #eee; text-align:center}
-  th{background:#fafbff; font-weight:700}
-  #error{display:none; background:#ffe6e6; color:#a40000; padding:10px 12px; border-radius:10px; margin:14px 0}
-  #ok{display:none; background:#eaf9ea; color:#136c13; padding:8px 12px; border-radius:10px; margin:10px 0; font-size:14px}
-  .status{font-size:13px; margin-right:10px; color:#555}
+  #error{display:none; background:var(--err-bg); color:var(--err-ink); padding:10px; border-radius:10px; margin:14px 0}
+  #ok{display:none; background:var(--ok-bg); color:var(--ok-ink); padding:8px 12px; border-radius:10px; margin:10px 0; font-size:14px}
+  .status{font-size:13px; margin-right:6px; color:#4b5563}
+
+  table{width:100%; border-collapse:separate; border-spacing:0; font-size:14px; overflow:hidden; border-radius:12px}
+  thead th{background:var(--head); color:var(--head-ink); font-weight:700; padding:10px 8px; position:sticky; top:0}
+  tbody td{padding:9px 8px; text-align:center; border-bottom:1px solid #eef0f4}
+  tbody tr:nth-child(even){background:var(--row-even)}
+  tbody tr:hover{background:#eef6ff}
+  td:nth-child(6){font-weight:bold} /* עמודת סגירה מודגשת */
+
+  /* צביעה + חצים */
+  .up{color:#107c10}
+  .down{color:#c7162b}
+  .flat{color:#111}
+  .arrow{font-size:11px; margin-inline-start:6px; opacity:.9}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Stock Shira – NVDA &amp; GOOGL 📈</h1>
-    <div class="muted">נתוני מניות מאוגוסט 2025 עם עדכון יומי</div>
+    <div class="topbar">
+      <h1>📈 Stock Shira – NVDA, GOOGL &amp; CMS</h1>
+      <span class="pill" id="today">—</span>
+    </div>
+    <div class="muted">נתוני מניות היסטוריים מאוגוסט 2025 עם עדכון יומי</div>
 
-    <div id="ok">נטען בהצלחה.</div>
+    <div id="ok">הנתונים נטענו בהצלחה.</div>
     <div id="error"></div>
 
-    <p>
-      <button id="loadBtn">…טעני נתונים</button>
+    <p class="topbar" style="margin-top:10px">
+      <button id="loadBtn">...טעני נתונים</button>
       <span id="status" class="status"></span>
+      <span class="pill" id="mode">מוכן</span>
     </p>
 
-    <div class="row">
-      <div class="card"><div class="title">NVDA — היסטוריה</div><div id="nvdaBox">…טוען</div></div>
-      <div class="card"><div class="title">GOOGL — היסטוריה</div><div id="googlBox">…טוען</div></div>
-    </div>
-
-    <div class="card" style="margin-top:18px">
+    <div class="card" style="margin-bottom:18px">
       <div class="title">סיכום אחרון</div>
       <div style="overflow:auto">
         <table id="lastTbl">
@@ -52,137 +72,124 @@
         </table>
       </div>
     </div>
+
+    <div class="row">
+      <div class="card"><div class="title">NVDA — היסטוריה</div><div id="box-NVDA">…טוען</div></div>
+      <div class="card"><div class="title">GOOGL — היסטוריה</div><div id="box-GOOGL">…טוען</div></div>
+      <div class="card"><div class="title">CMS — היסטוריה</div><div id="box-CMS">…טוען</div></div>
+    </div>
   </div>
 
 <script>
-/* ---------- הגדרות ---------- */
-const SYMBOLS = ["NVDA","GOOGL"];
+const SYMBOLS = ["NVDA","GOOGL","CMS"];
 const START_ISO = "2025-08-01";
 
-/* פרוקסים חלופיים למקרה של חסימה/נפילה */
+document.getElementById("today").textContent =
+  new Date().toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
+
 function proxyChain(url){
   const clean = url.replace(/^https?:\/\//,'');
   return [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://r.jina.ai/http://${clean}`,                    // קורא ומחזיר תוכן כטקסט (כולל JSON)
-    `https://cors.isomorphic-git.org/https://${clean}`,     // פרוקסי פתוח נוסף
-    `https://thingproxy.freeboard.io/fetch/${url}`,         // גיבוי נוסף
+    `https://r.jina.ai/http://${clean}`,
+    `https://cors.isomorphic-git.org/https://${clean}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
   ];
 }
-
-/* נסיון פניה מדורג לכמה פרוקסים עד הצלחה */
 async function fetchWithFallback(url){
   const urls = proxyChain(url);
   let lastErr;
   for (const u of urls){
     try{
-      const res = await fetch(u, {cache:"no-store"});
+      const res = await fetch(u,{cache:"no-store"});
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const txt = await res.text();
-      // יש פרוקסי שמחזיר JSON כטקסט – ננסה לפענח
       try { return JSON.parse(txt); } catch { return JSON.parse(txt.trim()); }
     }catch(e){ lastErr = e; }
   }
-  throw lastErr || new Error("Failed to fetch via proxies");
+  throw lastErr;
 }
-
-/* בניית URL של Yahoo לתקופה מאוגוסט 2025 ועד היום */
 function yahooUrl(symbol){
   const p1 = Math.floor(new Date(`${START_ISO}T00:00:00Z`).getTime()/1000);
   const p2 = Math.floor(Date.now()/1000);
   return `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${p1}&period2=${p2}&interval=1d&includeAdjustedClose=true`;
 }
-
-/* פירוק תגובת Yahoo לצורת טבלה */
 function parseYahooChart(j){
   const r = j?.chart?.result?.[0];
-  if(!r) throw new Error("מבנה תגובה לא צפוי");
   const t = r.timestamp || [];
   const q = r.indicators?.quote?.[0] || {};
-  const o = q.open || [], h = q.high || [], l = q.low || [], c = q.close || [], v = q.volume || [];
-  const rows = t.map((sec,i)=>({
-    date: new Date(sec*1000),
-    open: o[i] ?? null, high: h[i] ?? null, low: l[i] ?? null, close: c[i] ?? null, volume: v[i] ?? null
-  })).filter(r => r.close != null);
-  return rows;
+  return t.map((sec,i)=>({
+    date:new Date(sec*1000),
+    open:q.open?.[i], high:q.high?.[i], low:q.low?.[i], close:q.close?.[i], volume:q.volume?.[i]
+  })).filter(r=>r.close!=null);
+}
+const $=s=>document.querySelector(s);
+const loadBtn=$("#loadBtn"), okBox=$("#ok"), errBox=$("#error"), statusEl=$("#status"), modeEl=$("#mode");
+function fmtDate(d){return d.toISOString().slice(0,10);}
+function fmtNum(n){return (n==null||isNaN(n))?"-":Number(n).toLocaleString("he-IL",{maximumFractionDigits:2});}
+function setStatus(msg){statusEl.textContent=msg||"";}
+function showError(msg){errBox.style.display="block";errBox.textContent=msg;}
+function clearError(){errBox.style.display="none";errBox.textContent="";}
+
+/* מחזיר HTML של תא סגירה עם צבע + חץ */
+function closeCell(open, close){
+  const up = close>open, down = close<open;
+  const cls = up ? "up" : down ? "down" : "flat";
+  const arrow = up ? "🔺" : down ? "🔻" : "▬";
+  const aria = up ? "עלייה" : down ? "ירידה" : "ללא שינוי";
+  return `<span class="${cls}" aria-label="${aria}">${fmtNum(close)}<span class="arrow">${arrow}</span></span>`;
 }
 
-/* עזרי DOM */
-const $ = sel => document.querySelector(sel);
-const nvdaBox = $("#nvdaBox"), googlBox = $("#googlBox");
-const lastTbl = $("#lastTbl tbody");
-const loadBtn = $("#loadBtn"), okBox = $("#ok"), errBox = $("#error"), statusEl = $("#status");
-
-function fmtDate(d){ return d.toISOString().slice(0,10); }
-function fmtNum(n){ return (n==null || isNaN(n)) ? "-" : Number(n).toLocaleString("he-IL",{maximumFractionDigits:2}); }
-
-function setStatus(msg){ statusEl.textContent = msg || ""; }
-function showError(msg){ errBox.style.display="block"; errBox.textContent = msg; }
-function clearError(){ errBox.style.display="none"; errBox.textContent=""; }
-
-/* ציור טבלה היסטורית קצרה ל-DIV נתון */
 function renderHistory(div, rows){
-  const last = rows.slice(-20); // 20 ימים אחרונים לתצוגה קלה
+  const last = rows.slice(-20);
   const html = [
-    '<div style="overflow:auto">',
+    '<div style="overflow:auto; max-height:520px">',
     '<table><thead><tr><th>תאריך</th><th>פתיחה</th><th>גבוה</th><th>נמוך</th><th>סגירה</th><th>נפח</th></tr></thead><tbody>',
     ...last.reverse().map(r=>`<tr>
-      <td>${fmtDate(r.date)}</td>
-      <td>${fmtNum(r.open)}</td>
-      <td>${fmtNum(r.high)}</td>
-      <td>${fmtNum(r.low)}</td>
-      <td>${fmtNum(r.close)}</td>
-      <td>${fmtNum(r.volume)}</td>
-    </tr>`),
+        <td>${fmtDate(r.date)}</td>
+        <td>${fmtNum(r.open)}</td>
+        <td>${fmtNum(r.high)}</td>
+        <td>${fmtNum(r.low)}</td>
+        <td>${closeCell(r.open, r.close)}</td>
+        <td>${fmtNum(r.volume)}</td>
+      </tr>`),
     '</tbody></table></div>'
   ].join("");
-  div.innerHTML = html;
+  div.innerHTML=html;
 }
 
-/* מילוי שורת “סיכום אחרון” */
-function renderLast(symbol, row, isFirst){
-  const tr = `<tr>
+const lastBody=$("#lastTbl tbody");
+function renderLast(symbol,row,isFirst){
+  const tr=`<tr>
     <td>${symbol}</td>
     <td>${fmtDate(row.date)}</td>
     <td>${fmtNum(row.open)}</td>
     <td>${fmtNum(row.high)}</td>
     <td>${fmtNum(row.low)}</td>
-    <td>${fmtNum(row.close)}</td>
+    <td>${closeCell(row.open, row.close)}</td>
     <td>${fmtNum(row.volume)}</td>
   </tr>`;
-  if(isFirst) lastTbl.innerHTML = tr; else lastTbl.insertAdjacentHTML("beforeend", tr);
+  if(isFirst) lastBody.innerHTML=tr; else lastBody.insertAdjacentHTML("beforeend",tr);
 }
 
-/* טוען את שני הסימולים, עם נפילות מטופלות ומעבר פרוקסי אוטומטי */
 async function loadAll(){
-  clearError(); okBox.style.display="none"; setStatus("טוען…"); loadBtn.disabled = true;
-  nvdaBox.textContent = "…טוען"; googlBox.textContent = "…טוען";
-  lastTbl.innerHTML = `<tr><td colspan="7">…טוען</td></tr>`;
+  clearError();okBox.style.display="none";setStatus("טוען…");modeEl.textContent="טוען";loadBtn.disabled=true;
+  for(const s of SYMBOLS){const box=document.getElementById(`box-${s}`);if(box) box.textContent="…טוען";}
+  lastBody.innerHTML=`<tr><td colspan="7">…טוען</td></tr>`;
   try{
-    let first = true;
-    for (const s of SYMBOLS){
-      const url = yahooUrl(s);
-      const json = await fetchWithFallback(url);
-      const rows = parseYahooChart(json);
-      if(!rows.length) throw new Error(`אין שורות עבור ${s}`);
-      const last = rows[rows.length-1];
-
-      if(s==="NVDA") renderHistory(nvdaBox, rows); else renderHistory(googlBox, rows);
-      renderLast(s, last, first); first = false;
+    let first=true;
+    for(const s of SYMBOLS){
+      const rows=parseYahooChart(await fetchWithFallback(yahooUrl(s)));
+      const last=rows[rows.length-1];
+      renderHistory(document.getElementById(`box-${s}`),rows);
+      renderLast(s,last,first); first=false;
     }
-    okBox.style.display="block"; okBox.textContent = "הנתונים נטענו בהצלחה.";
-    setStatus("מוכן");
-  }catch(err){
-    console.error(err);
-    showError(`שגיאה בטעינת נתונים (Yahoo): ${err.message || err}`);
-    setStatus("נכשל ✗");
-  }finally{
-    loadBtn.disabled = false;
-  }
+    okBox.style.display="block";okBox.textContent="הנתונים נטענו בהצלחה.";
+    setStatus("מוכן");modeEl.textContent="מוכן";
+  }catch(err){console.error(err);showError(`שגיאה: ${err.message}`);setStatus("נכשל");modeEl.textContent="נכשל";}
+  finally{loadBtn.disabled=false;}
 }
-
-loadBtn.addEventListener("click", loadAll);
-window.addEventListener("load", ()=>{ /* נטען רק בלחיצה—פחות חסימות בדפדפן */ });
+loadBtn.addEventListener("click",loadAll);
 </script>
 </body>
 </html>
